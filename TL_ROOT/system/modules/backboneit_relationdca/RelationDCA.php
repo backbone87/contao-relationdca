@@ -180,8 +180,8 @@ class RelationDCA extends Backend {
 	const RELATION_ONE_TO_ONE	= 'storeOneToOneRelation';
 	
 	/**
-	 * Denotes the configuration value for ignoring uniqueness checks for the
-	 * "bbit_rdca_unique" configuration key.
+	 * Denotes the configuration value for ignoring values which violates
+	 * uniqueness checks for the "bbit_rdca_unique" configuration key.
 	 * 
 	 * @var string
 	 */
@@ -400,13 +400,10 @@ class RelationDCA extends Backend {
 	
 	protected function storeOneToOneRelation($objDC, $strField, array $arrConfig, array $arrValues) {
 		$varValue = $arrValues[0];
-		$varValue === null && $varValue = $arrConfig[self::NULL_VALUE]; 
+		$varValue === null && $varValue = $arrConfig[self::NULL_VALUE];
 		
 		$arrParams = array();
 		$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
-		
-		$arrSet = array();
-		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 		
 		$objUnique = $this->Database->prepare('
 			SELECT	' . $arrConfig[self::OWN_KEY_COL] . ',
@@ -419,24 +416,33 @@ class RelationDCA extends Backend {
 			' . $strAttributes
 		)->execute(array_merge(array($objDC->activeRecord->{$arrConfig[self::OWN_KEY]}, $varValue), $arrParams));
 		
-		if($objUnique->numRows == 1
-		&& $objUnique->{$arrConfig[self::OWN_KEY_COL]} == $objDC->activeRecord->{$arrConfig[self::OWN_KEY]}
+		if($objUnique->{$arrConfig[self::OWN_KEY_COL]} == $objDC->activeRecord->{$arrConfig[self::OWN_KEY]}
 		&& $objUnique->{$arrConfig[self::FOREIGN_KEY_COL]} == $varValue) {
 			return;
 				
 		} elseif($objUnique->numRows > 1) {
-			if($arrConfig[self::UNIQUE] == self::UNIQUE_REJECT) {
-				throw new Exception('uniqueness violated. rejecting.');
-				
-			} elseif($arrConfig[self::UNIQUE] == self::UNIQUE_OVERWRITE) {
-				$blnResetUnique = true;
+			switch($arrConfig[self::UNIQUE]) {
+				case self::UNIQUE_REJECT:
+					throw new Exception('uniqueness violated. rejecting.');
+					break;
+					
+				case self::UNIQUE_OVERWRITE:
+					$blnOverwriteUnique = true;
+					break;
+					
+				case self::UNIQUE_IGNORE:
+					return;
+					break;
 			}
 		}
+		
+		$arrSet = array();
+		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 		
 		switch($arrConfig[self::JOIN_TABLE]) {
 			
 			case $arrConfig[self::OWN_TABLE]:
-				if($blnResetUnique) {
+				if($blnOverwriteUnique) {
 					$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $arrConfig[self::NULL_VALUE];
 					array_unshift($arrParams, $varValue);
 					
@@ -463,7 +469,7 @@ class RelationDCA extends Backend {
 				break;
 				
 			case $arrConfig[self::FOREIGN_TABLE]:
-				if($blnResetUnique || $varValue == $arrConfig[self::NULL_VALUE]) {
+				if($blnOverwriteUnique || $varValue == $arrConfig[self::NULL_VALUE]) {
 					$arrSet[$arrConfig[self::OWN_KEY_COL]] = $arrConfig[self::NULL_VALUE];
 					array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
 					
@@ -508,9 +514,6 @@ class RelationDCA extends Backend {
 					' . $strAttributes
 				)->execute($arrParams);
 				
-				array_shift($arrParams);
-				array_shift($arrParams);
-				
 				if($varValue == $arrConfig[self::NULL_VALUE])
 					return;
 					
@@ -526,11 +529,137 @@ class RelationDCA extends Backend {
 	}
 	
 	protected function storeManyToOneRelation($objDC, $strField, array $arrConfig, array $arrValues) {
-//		$arrConfig
+		$varValue = $arrValues[0];
+		$varValue === null && $varValue = $arrConfig[self::NULL_VALUE];
+		
+		$arrParams = array();
+		$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
+		
+		$arrSet = array();
+		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
+		
+		switch($arrConfig[self::JOIN_TABLE]) {
+				
+			case $arrConfig[self::OWN_TABLE]:
+				$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varValue;
+				array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
+				
+				$objStmt = $this->Database->prepare(
+					'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
+					%s
+					WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+					' . $strAttributes
+				)->set($arrSet)->execute($arrParams);
+				
+				break;
+				
+			default:
+				array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
+					
+				$this->Database->prepare('
+					DELETE
+					FROM	' . $arrConfig[self::JOIN_TABLE] . '
+					WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+					' . $strAttributes
+				)->execute($arrParams);
+				
+				if($varValue == $arrConfig[self::NULL_VALUE])
+					return;
+					
+				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
+				$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varValue;
+				$arrSet = array_merge((array) $arrConfig[self::ATTRIBUTES], $arrSet);
+				
+				$this->Database->prepare(
+					'INSERT INTO ' . $arrConfig[self::JOIN_TABLE] . ' %s'
+				)->set($arrSet)->execute();
+				break;
+		}
 	}
 	
 	protected function storeOneToManyRelation($objDC, $strField, array $arrConfig, array $arrValues) {
+		$arrParams = array();
+		$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
 		
+		$arrSet = array();
+		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
+		
+		//array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
+		
+		$objUnique = $this->Database->prepare(
+			'SELECT	' . $arrConfig[self::OWN_KEY_COL] . ',
+					' . $arrConfig[self::FOREIGN_KEY_COL] . '
+			FROM	' . $arrConfig[self::JOIN_TABLE] . '
+			WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . self::generateWildcards($arrValues) . ')
+			' . $strAttributes
+		)->execute(array_merge($arrValues, $arrParams));
+		
+		//array_shift($arrParams);
+		
+		while($objUnique->next()) {
+			if($objUnique->{$arrConfig[self::OWN_KEY_COL]} == $arrConfig[self::NULL_VALUE]) {
+				$arrInsert[] = $objUnique->{$arrConfig[self::FOREIGN_KEY_COL]};
+			} else {
+				$arrDelete[] = $objUnique->{$arrConfig[self::FOREIGN_KEY_COL]};
+			}$objDC->activeRecord->{$arrConfig[self::OWN_KEY]}
+		}
+		
+		if($arrConfig[self::UNIQUE] != self::UNIQUE_REJECT) {
+			$objUnique->fetchEach($arrConfig[self::FOREIGN_KEY_COL]);
+			$arrDelete = 
+		} elseif($objUnique->numRows) {
+			 throw new Exception('uniqueness violated, reject', 1100);
+		} elseif($objUnique->numRows);
+		
+		switch($arrConfig[self::JOIN_TABLE]) {
+			
+			case $arrConfig[self::FOREIGN_TABLE]:
+				if($blnOverwriteUnique || $varValue == $arrConfig[self::NULL_VALUE]) {
+					$arrSet[$arrConfig[self::OWN_KEY_COL]] = $arrConfig[self::NULL_VALUE];
+					array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
+					
+					$this->Database->prepare(
+						'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
+						%s
+						WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+						' . $strAttributes
+					)->set($arrSet)->execute($arrParams);
+					
+					array_shift($arrParams);
+				}
+				
+				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
+				$arrParams = array_merge($arrValues, $arrParams);
+				
+				$this->Database->prepare(
+					'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
+					%s
+					WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . self::generateWildcards($arrValues) . ')
+					' . $strAttributes
+				)->set($arrSet)->execute($arrParams);
+				break;
+				
+			default:
+				$objStmt = $this->Database->prepare('*');
+		
+				$objStmt->prepare('
+					DELETE
+					FROM	' . $arrConfig[self::JOIN_TABLE] . '
+					WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . $this->generateWildcards($arrDelete) . ')
+					' . $strAttributes
+				)->execute(array_merge($arrDelete, $arrParams));
+				
+				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
+				$arrSet = array_merge((array) $arrConfig[self::ATTRIBUTES], $arrSet);
+				
+				foreach((array) $arrInsert as $varForeignKey) {
+					$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varForeignKey; 
+					$objStmt->prepare(
+						'INSERT INTO ' . $arrConfig[self::JOIN_TABLE] . ' %s'
+					)->set($arrSet)->execute();
+				}
+				break;
+		}
 	}
 	
 	protected function storeManyToManyRelation($objDC, $strField, array $arrConfig, array $arrValues) {
@@ -562,12 +691,10 @@ class RelationDCA extends Backend {
 		$arrConfig[self::TIMESTAMP_COL] && $arrInsert[$arrConfig[self::TIMESTAMP_COL]] = time();
 		
 		foreach(array_diff($arrValues, $arrExisting) as $varForeignKey) {
+			$arrInsert[$arrConfig[self::FOREIGN_KEY_COL]] = $varForeignKey;
 			$objStmt->prepare(
 				'INSERT INTO ' . $arrConfig[self::JOIN_TABLE] . ' %s'
-			)->set(array_merge(
-				$arrInsert,
-				array($arrConfig[self::FOREIGN_KEY_COL] => $varForeignKey)
-			))->execute();
+			)->set($arrInsert)->execute();
 		}
 	}
 	
