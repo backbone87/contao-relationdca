@@ -180,22 +180,53 @@ class RelationDCA extends Backend {
 	const RELATION_ONE_TO_ONE	= 'storeOneToOneRelation';
 	
 	/**
-	 * Denotes the configuration value for ignoring values which violates
-	 * uniqueness checks for the "bbit_rdca_unique" configuration key.
-	 * 
-	 * @var string
-	 */
-	const UNIQUE_IGNORE		= 'ignore';
-	/**
 	 * Denotes the configuration value for overwriting existing relations to
 	 * fulfill uniqueness for the "bbit_rdca_unique" configuration key.
+	 * Suppose following existing one-to-one relations:
+	 * own A <-> foreign A
+	 * own B <-> foreign B
+	 * Changing the relation of entity own A to entity foreign B will cause the
+	 * deletion of the relation of entity own B to entity foreign B.
 	 * 
 	 * @var string
 	 */
 	const UNIQUE_OVERWRITE	= 'overwrite';
 	/**
+	 * Denotes the configuration value for ignoring values which violates
+	 * uniqueness checks for the "bbit_rdca_unique" configuration key.
+	 * 
+	 * UNIQUE_IGNORE guarantees that only these relations are modified that
+	 * involve no other entity than this own entity or those foreign entities,
+	 * which were or will be related to this own entity.
+	 * Suppose following existing one-to-one relations:
+	 * own A <-> foreign A
+	 * own B <-> foreign B
+	 * Changing the relation of entity own A to entity foreign B will be
+	 * ignored, because it will modify the relation of entity own B.
+	 * 
+	 * When using UNIQUE_IGNORE it is recommended that the user can select only
+	 * these foreign entities for relation that are not already in a relation to
+	 * another own entity.
+	 * 
+	 * @var string
+	 */
+	const UNIQUE_IGNORE		= 'ignore';
+	/**
 	 * Denotes the configuration value for rejecting and throwing an exception
 	 * if uniqueness check fails for the "bbit_rdca_unique" configuration key.
+	 * 
+	 * UNIQUE_REJECT guarantees that only these relations are modified that
+	 * involve no other entity than this own entity or those foreign entities,
+	 * which were or will be related to this own entity.
+	 * Suppose following existing one-to-one relations:
+	 * own A <-> foreign A
+	 * own B <-> foreign B
+	 * Changing the relation of entity own A to entity foreign B will be
+	 * rejected, because it will modify the relation of entity own B.
+	 * 
+	 * When using UNIQUE_REJECT it is recommended that the user can select only
+	 * these foreign entities for relation that are not already in a relation to
+	 * another own entity.
 	 * 
 	 * @var string
 	 */
@@ -340,49 +371,49 @@ class RelationDCA extends Backend {
 	}
 	
 	public function callbackDCDelete($objDC) {
-		$arrUndo = $this->getCurrentUndo($objDC->table, $objDC->id);
-		
-		if(!$arrUndo)
-			return;
-			
-		$arrFields = $GLOBALS['TL_DCA'][$objDC->table]['relations'];
-		
-		foreach((array) $arrFields as $strField => $arrConfig) {
-			if(!$arrConfig[self::CASCADE_DELETE])
-				continue;
-				
-			if($arrConfig[self::JOIN_TABLE] == $objDC->table
-			|| $arrConfig[self::JOIN_TABLE] == $arrConfig[self::FOREIGN_TABLE])
-				continue;
-			
-			$arrParams = array($objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
-			$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
-		
-			$objData = $this->Database->prepare('
-				SELECT	*
-				FROM	' . $arrConfig[self::JOIN_TABLE] . '
-				WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
-				' . $strAttributes
-			)->executeUncached($arrParams);
-			
-			while($objData->next()) {
-				$arrUndo['data'][$arrConfig[self::JOIN_TABLE]][] = $objData->row();
-				$blnStore = true;
-			}
-			
-			$objData->numRows && $this->Database->prepare('
-				DELETE
-				FROM	' . $arrConfig[self::JOIN_TABLE] . '
-				WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
-				' . $strAttributes
-			)->executeUncached($arrParams);
-		}
-		
-		$blnStore && $this->Database->prepare(
-			'UPDATE	tl_undo
-			SET		data = ?
-			WHERE	id = ?
-		')->executeUncached(serialize($arrUndo['data']), $arrUndo['id']);
+//		$arrUndo = $this->getCurrentUndo($objDC->table, $objDC->id);
+//		
+//		if(!$arrUndo)
+//			return;
+//			
+//		$arrFields = $GLOBALS['TL_DCA'][$objDC->table]['relations'];
+//		
+//		foreach((array) $arrFields as $strField => $arrConfig) {
+//			if(!$arrConfig[self::CASCADE_DELETE])
+//				continue;
+//				
+//			if($arrConfig[self::JOIN_TABLE] == $objDC->table
+//			|| $arrConfig[self::JOIN_TABLE] == $arrConfig[self::FOREIGN_TABLE])
+//				continue;
+//			
+//			$arrParams = array($objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
+//			$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
+//		
+//			$objData = $this->Database->prepare('
+//				SELECT	*
+//				FROM	' . $arrConfig[self::JOIN_TABLE] . '
+//				WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+//				' . $strAttributes
+//			)->executeUncached($arrParams);
+//			
+//			while($objData->next()) {
+//				$arrUndo['data'][$arrConfig[self::JOIN_TABLE]][] = $objData->row();
+//				$blnStore = true;
+//			}
+//			
+//			$objData->numRows && $this->Database->prepare('
+//				DELETE
+//				FROM	' . $arrConfig[self::JOIN_TABLE] . '
+//				WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+//				' . $strAttributes
+//			)->executeUncached($arrParams);
+//		}
+//		
+//		$blnStore && $this->Database->prepare(
+//			'UPDATE	tl_undo
+//			SET		data = ?
+//			WHERE	id = ?
+//		')->executeUncached(serialize($arrUndo['data']), $arrUndo['id']);
 	}
 	
 	protected function generateAttributes($arrConfig, &$arrParams) {
@@ -405,34 +436,35 @@ class RelationDCA extends Backend {
 		$arrParams = array();
 		$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
 		
-		$objUnique = $this->Database->prepare('
-			SELECT	' . $arrConfig[self::OWN_KEY_COL] . ',
-					' . $arrConfig[self::FOREIGN_KEY_COL] . '
-			FROM	' . $arrConfig[self::JOIN_TABLE] . '
-			WHERE	(
-					' . $arrConfig[self::OWN_KEY_COL] . ' = ?
-				OR	' . $arrConfig[self::FOREIGN_KEY_COL] . ' = ?
-			)
-			' . $strAttributes
-		)->execute(array_merge(array($objDC->activeRecord->{$arrConfig[self::OWN_KEY]}, $varValue), $arrParams));
+		array_unshift($arrParams, $varValue);
 		
-		if($objUnique->{$arrConfig[self::OWN_KEY_COL]} == $objDC->activeRecord->{$arrConfig[self::OWN_KEY]}
-		&& $objUnique->{$arrConfig[self::FOREIGN_KEY_COL]} == $varValue) {
-			return;
+		$objUnique = $this->Database->prepare('
+			SELECT	' . $arrConfig[self::OWN_KEY_COL] . '
+			FROM	' . $arrConfig[self::JOIN_TABLE] . '
+			WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' = ?
+			' . $strAttributes
+		)->execute($arrParams);
+		
+		array_shift($arrParams);
+		
+		if($objUnique->numRows) {
+			if($objUnique->{$arrConfig[self::OWN_KEY_COL]} == $objDC->activeRecord->{$arrConfig[self::OWN_KEY]}) {
+				return;
 				
-		} elseif($objUnique->numRows > 1) {
-			switch($arrConfig[self::UNIQUE]) {
-				case self::UNIQUE_REJECT:
-					throw new Exception('uniqueness violated. rejecting.');
-					break;
-					
-				case self::UNIQUE_OVERWRITE:
-					$blnOverwriteUnique = true;
-					break;
-					
-				case self::UNIQUE_IGNORE:
-					return;
-					break;
+			} elseif($objUnique->{$arrConfig[self::OWN_KEY_COL]} != $arrConfig[self::NULL_VALUE]) {
+				switch($arrConfig[self::UNIQUE]) {
+					default:
+					case self::UNIQUE_OVERWRITE:
+						break;
+						
+					case self::UNIQUE_IGNORE:
+						return;
+						break;
+						
+					case self::UNIQUE_REJECT:
+						throw new Exception('uniqueness violated. rejecting.');
+						break;
+				}
 			}
 		}
 		
@@ -442,7 +474,8 @@ class RelationDCA extends Backend {
 		switch($arrConfig[self::JOIN_TABLE]) {
 			
 			case $arrConfig[self::OWN_TABLE]:
-				if($blnOverwriteUnique) {
+				// remove the old relation of other own entities to the foreign entity (if any foreign entity)
+				if($varValue != $arrConfig[self::NULL_VALUE]) {
 					$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $arrConfig[self::NULL_VALUE];
 					array_unshift($arrParams, $varValue);
 					
@@ -456,6 +489,7 @@ class RelationDCA extends Backend {
 					array_shift($arrParams);
 				}
 				
+				// set the new relation of this own entity to the foreign entity (possibly to unrelated)
 				$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varValue;
 				array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
 				
@@ -469,20 +503,24 @@ class RelationDCA extends Backend {
 				break;
 				
 			case $arrConfig[self::FOREIGN_TABLE]:
-				if($blnOverwriteUnique || $varValue == $arrConfig[self::NULL_VALUE]) {
-					$arrSet[$arrConfig[self::OWN_KEY_COL]] = $arrConfig[self::NULL_VALUE];
-					array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
-					
-					$this->Database->prepare(
-						'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
-						%s
-						WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
-						' . $strAttributes
-					)->set($arrSet)->execute($arrParams);
-					
-					array_shift($arrParams);
-				}
+				// remove the old relation from other foreign entities to this own entity
+				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $arrConfig[self::NULL_VALUE];
+				array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
 				
+				$this->Database->prepare(
+					'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
+					%s
+					WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+					' . $strAttributes
+				)->set($arrSet)->execute($arrParams);
+				
+				array_shift($arrParams);
+				
+				// no new relation to be established
+				if($varValue == $arrConfig[self::NULL_VALUE])
+					return;
+					
+				// set the new relation of the foreign entity to this own entity
 				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
 				array_unshift($arrParams, $varValue);
 				
@@ -495,15 +533,13 @@ class RelationDCA extends Backend {
 				break;
 				
 			default:
-				// this can not be checked before, we need to know we use a separate join table
-				// there could be only one entry in the join table ($objUnique),
-				// which is associated with another entry of this table
-				if($arrConfig[self::UNIQUE] == self::UNIQUE_REJECT
-				&& $objUnique->{$arrConfig[self::OWN_KEY_COL]} != $objDC->activeRecord->{$arrConfig[self::OWN_KEY]})
-					throw new Exception('uniqueness violated. rejecting.');
-				
+				// remove the old relation of this own entity and of the foreign entity (if any)
 				array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]}, $varValue);
-					
+				
+				// $varValue could be "NULL", in this case the second part of the OR clause always fails,
+				// resulting in at most one deleted dataset
+				// if the null value is not "NULL" than, all "invalid" relation datasets are deleted,
+				// automagically
 				$this->Database->prepare('
 					DELETE
 					FROM	' . $arrConfig[self::JOIN_TABLE] . '
@@ -514,9 +550,11 @@ class RelationDCA extends Backend {
 					' . $strAttributes
 				)->execute($arrParams);
 				
+				// no new relation to be established
 				if($varValue == $arrConfig[self::NULL_VALUE])
 					return;
 					
+				// set the new relation between the foreign entity and this own entity
 				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
 				$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varValue;
 				$arrSet = array_merge((array) $arrConfig[self::ATTRIBUTES], $arrSet);
@@ -578,81 +616,93 @@ class RelationDCA extends Backend {
 	}
 	
 	protected function storeOneToManyRelation($objDC, $strField, array $arrConfig, array $arrValues) {
-		$arrParams = array();
+		$objStmt = $this->Database->prepare('*');
+		$arrParams = array($objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
 		$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
 		
 		$arrSet = array();
 		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 		
-		//array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
-		
-		$objUnique = $this->Database->prepare(
-			'SELECT	' . $arrConfig[self::OWN_KEY_COL] . ',
-					' . $arrConfig[self::FOREIGN_KEY_COL] . '
+		$arrExisting = $objStmt->prepare('
+			SELECT	' . $arrConfig[self::FOREIGN_KEY_COL] . '
 			FROM	' . $arrConfig[self::JOIN_TABLE] . '
-			WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . self::generateWildcards($arrValues) . ')
+			WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
 			' . $strAttributes
-		)->execute(array_merge($arrValues, $arrParams));
+		)->execute($arrParams)->fetchEach($arrConfig[self::FOREIGN_KEY_COL]);
 		
-		//array_shift($arrParams);
-		
-		while($objUnique->next()) {
-			if($objUnique->{$arrConfig[self::OWN_KEY_COL]} == $arrConfig[self::NULL_VALUE]) {
-				$arrInsert[] = $objUnique->{$arrConfig[self::FOREIGN_KEY_COL]};
-			} else {
-				$arrDelete[] = $objUnique->{$arrConfig[self::FOREIGN_KEY_COL]};
-			}$objDC->activeRecord->{$arrConfig[self::OWN_KEY]}
+		if($arrValues) {
+			$arrForeignDelete = $objStmt->prepare(
+				'SELECT	' . $arrConfig[self::FOREIGN_KEY_COL] . '
+				FROM	' . $arrConfig[self::JOIN_TABLE] . '
+				WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . self::generateWildcards($arrValues) . ')
+				AND		' . $arrConfig[self::OWN_KEY_COL] . ' != ?
+				' . $strAttributes
+			)->execute(array_merge($arrValues, $arrParams))->fetchEach($arrConfig[self::FOREIGN_KEY_COL]);
 		}
 		
-		if($arrConfig[self::UNIQUE] != self::UNIQUE_REJECT) {
-			$objUnique->fetchEach($arrConfig[self::FOREIGN_KEY_COL]);
-			$arrDelete = 
-		} elseif($objUnique->numRows) {
-			 throw new Exception('uniqueness violated, reject', 1100);
-		} elseif($objUnique->numRows);
+		array_shift($arrParams);
+		
+		$arrNew = array_diff($arrValues, $arrExisting);
+		$arrDelete = array_diff($arrExisting, $arrValues);
+		
+		if($arrForeignDelete) {
+			switch($arrConfig[self::UNIQUE]) {
+				default:
+				case self::UNIQUE_OVERWRITE:
+					break;
+					
+				case self::UNIQUE_IGNORE:
+					$arrNew = array_diff($arrNew, $arrForeignDelete);
+					$arrForeignDelete = array();
+					break;
+					
+				case self::UNIQUE_REJECT:
+					throw new Exception('uniqueness violated. rejecting.');
+					break;
+			}
+		}
 		
 		switch($arrConfig[self::JOIN_TABLE]) {
 			
 			case $arrConfig[self::FOREIGN_TABLE]:
-				if($blnOverwriteUnique || $varValue == $arrConfig[self::NULL_VALUE]) {
+				if($arrDelete) {
 					$arrSet[$arrConfig[self::OWN_KEY_COL]] = $arrConfig[self::NULL_VALUE];
-					array_unshift($arrParams, $objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
-					
-					$this->Database->prepare(
+					$objStmt->prepare(
 						'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
 						%s
-						WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+						WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . self::generateWildcards($arrDelete) . ')
 						' . $strAttributes
-					)->set($arrSet)->execute($arrParams);
-					
-					array_shift($arrParams);
+					)->set($arrSet)->execute(array_merge($arrDelete, $arrParams));
 				}
 				
-				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
-				$arrParams = array_merge($arrValues, $arrParams);
+				if($arrNew) {
+					$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
+					$objStmt->prepare(
+						'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
+						%s
+						WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . self::generateWildcards($arrNew) . ')
+						' . $strAttributes
+					)->set($arrSet)->execute(array_merge($arrNew, $arrParams));
+				}
 				
-				$this->Database->prepare(
-					'UPDATE	' . $arrConfig[self::JOIN_TABLE] . '
-					%s
-					WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . self::generateWildcards($arrValues) . ')
-					' . $strAttributes
-				)->set($arrSet)->execute($arrParams);
 				break;
 				
 			default:
-				$objStmt = $this->Database->prepare('*');
-		
-				$objStmt->prepare('
-					DELETE
-					FROM	' . $arrConfig[self::JOIN_TABLE] . '
-					WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . $this->generateWildcards($arrDelete) . ')
-					' . $strAttributes
-				)->execute(array_merge($arrDelete, $arrParams));
+				// remove deleted relations between this own entity and foreign entities
+				// and remove old relations between the foreign entities to be related with this own entity
+				if($arrDelete || $arrForeignDelete) {
+					$objStmt->prepare('
+						DELETE
+						FROM	' . $arrConfig[self::JOIN_TABLE] . '
+						WHERE	' . $arrConfig[self::FOREIGN_KEY_COL] . ' IN (' . $this->generateWildcards($arrDelete, $arrForeignDelete) . ')
+						' . $strAttributes
+					)->execute(array_merge($arrDelete, $arrForeignDelete, $arrParams));
+				}
 				
 				$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
 				$arrSet = array_merge((array) $arrConfig[self::ATTRIBUTES], $arrSet);
 				
-				foreach((array) $arrInsert as $varForeignKey) {
+				foreach((array) $arrNew as $varForeignKey) {
 					$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varForeignKey; 
 					$objStmt->prepare(
 						'INSERT INTO ' . $arrConfig[self::JOIN_TABLE] . ' %s'
@@ -686,66 +736,66 @@ class RelationDCA extends Backend {
 			')->execute(array_merge($arrParams, $arrDelete));
 		}
 		
-		$arrInsert = (array) $arrConfig[self::ATTRIBUTES];
-		$arrInsert[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
-		$arrConfig[self::TIMESTAMP_COL] && $arrInsert[$arrConfig[self::TIMESTAMP_COL]] = time();
+		$arrSet = (array) $arrConfig[self::ATTRIBUTES];
+		$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
+		$arrConfig[self::TIMESTAMP_COL] && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 		
 		foreach(array_diff($arrValues, $arrExisting) as $varForeignKey) {
-			$arrInsert[$arrConfig[self::FOREIGN_KEY_COL]] = $varForeignKey;
+			$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varForeignKey;
 			$objStmt->prepare(
 				'INSERT INTO ' . $arrConfig[self::JOIN_TABLE] . ' %s'
-			)->set($arrInsert)->execute();
+			)->set($arrSet)->execute();
 		}
 	}
 	
-	protected function getCurrentUndo($strTable, $intID) {
-		$this->import('BackendUser', 'User');
-		$objUndo = $this->Database->prepare('
-			SELECT	*
-			FROM	tl_undo
-			WHERE	pid = ?
-			AND		fromTable = ?
-			AND		backboneit_relationdca = ?
-			ORDER BY tstamp DESC
-		')->executeUncached(
-			$this->User->id,
-			$strTable,
-			0
-		);
-		
-		$arrAlreadyProcessed = array();
-		
-		while($objUndo->next()) {
-			$arrData = deserialize($objUndo->data, true);
-			
-			$arrIDs = array();
-			foreach((array) $arrData[$strTable] as $arrRow)
-				$arrIDs[$arrRow['id']] = true;
-			
-			if(isset($arrIDs[$intID])) {
-				$arrUndo = $objUndo->row();
-				$arrUndo['data'] = $arrData; //saves double deserialize later
-				
-			} elseif($this->Database->tableExists($objUndo->table)) {
-				$intCount = $this->Database->prepare('
-					SELECT	COUNT(*) AS cnt
-					FROM	' . $objUndo->table . '
-					WHERE	id IN (' . self::generateWildcards($arrIDs) . ') 
-				')->executeUncached(array_keys($arrIDs))->cnt;
-				
-				 // some IDs where already deleted, so mark this undo to has been processed
-				$intCount != count($arrIDs) && $arrAlreadyProcessed[] = $objUndo->id;
-			}
-		}
-		
-		$arrAlreadyProcessed && $this->Database->prepare(
-			'UPDATE	tl_undo
-			SET		backboneit_relationdca = ?
-			WHERE	id IN (' . self::generateWildcards($arrAlreadyProcessed) . ')
-		')->executeUncached(array_merge(array(time()), $arrAlreadyProcessed));
-		
-		return $arrUndo;
-	}
+//	protected function getCurrentUndo($strTable, $intID) {
+//		$this->import('BackendUser', 'User');
+//		$objUndo = $this->Database->prepare('
+//			SELECT	*
+//			FROM	tl_undo
+//			WHERE	pid = ?
+//			AND		fromTable = ?
+//			AND		backboneit_relationdca = ?
+//			ORDER BY tstamp DESC
+//		')->executeUncached(
+//			$this->User->id,
+//			$strTable,
+//			0
+//		);
+//		
+//		$arrAlreadyProcessed = array();
+//		
+//		while($objUndo->next()) {
+//			$arrData = deserialize($objUndo->data, true);
+//			
+//			$arrIDs = array();
+//			foreach((array) $arrData[$strTable] as $arrRow)
+//				$arrIDs[$arrRow['id']] = true;
+//			
+//			if(isset($arrIDs[$intID])) {
+//				$arrUndo = $objUndo->row();
+//				$arrUndo['data'] = $arrData; //saves double deserialize later
+//				
+//			} elseif($this->Database->tableExists($objUndo->table)) {
+//				$intCount = $this->Database->prepare('
+//					SELECT	COUNT(*) AS cnt
+//					FROM	' . $objUndo->table . '
+//					WHERE	id IN (' . self::generateWildcards($arrIDs) . ') 
+//				')->executeUncached(array_keys($arrIDs))->cnt;
+//				
+//				 // some IDs where already deleted, so mark this undo to has been processed
+//				$intCount != count($arrIDs) && $arrAlreadyProcessed[] = $objUndo->id;
+//			}
+//		}
+//		
+//		$arrAlreadyProcessed && $this->Database->prepare(
+//			'UPDATE	tl_undo
+//			SET		backboneit_relationdca = ?
+//			WHERE	id IN (' . self::generateWildcards($arrAlreadyProcessed) . ')
+//		')->executeUncached(array_merge(array(time()), $arrAlreadyProcessed));
+//		
+//		return $arrUndo;
+//	}
 	
 	protected function checkKeys(array &$arrConfig, array $arrIDs) {
 		if(!$arrIDs)
@@ -804,7 +854,8 @@ class RelationDCA extends Backend {
 	}
 	
 	public static function generateWildcards(array $arrValues) {
-		return implode(',', array_fill(0, count($arrValues), '?'));
+		$arrArgs = func_get_args();
+		return implode(',', array_fill(0, array_sum(array_map('count', array_filter($arrArgs, 'is_array'))), '?'));
 	}
 	
 	protected function __construct() {

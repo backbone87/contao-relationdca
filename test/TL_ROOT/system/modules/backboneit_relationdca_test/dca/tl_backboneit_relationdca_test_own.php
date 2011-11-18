@@ -56,8 +56,10 @@ $GLOBALS['TL_DCA']['tl_backboneit_relationdca_test_own'] = array(
 	'palettes' => array(
 		'default' => 'name;'
 			. '{onetoone},onetooneOwn,onetooneForeign,onetooneJoinTable;'
-//			. '{manytoone},manytooneOwn,manytooneJoinTable;'
-//			. '{onetomany},onetomanyForeign,onetomanyJoinTable;'
+			. '{onetooneUnique},onetooneOwnUnique,onetooneForeignUnique,onetooneJoinTableUnique;'
+			. '{manytoone},manytooneOwn,manytooneJoinTable;'
+			. '{onetomany},onetomanyForeign,onetomanyJoinTable;'
+			. '{onetomany},onetomanyForeignUnique,onetomanyJoinTableUnique;'
 			. '{manytomany},manytomanyJoinTable'
 	),
 
@@ -69,6 +71,9 @@ $GLOBALS['TL_DCA']['tl_backboneit_relationdca_test_own'] = array(
 			'inputType'               => 'text',
 			'eval'                    => array('mandatory'=>true, 'maxlength'=>255)
 		),
+		
+		
+		
 		'onetooneOwn' => array
 		(
 			'inputType'	=> 'select',
@@ -134,13 +139,244 @@ $GLOBALS['TL_DCA']['tl_backboneit_relationdca_test_own'] = array(
 			RelationDCA::FOREIGN_KEY_COL=> 'foreignCol',							// required
 			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
 //			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_OVERWRITE,			// default
-//			RelationDCA::NULL_VALUE		=> null,									// default
+//			RelationDCA::NULL_VALUE		=> null,									// unused
 //			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
 //			RelationDCA::ATTRIBUTES		=> array(),									// default
 //			RelationDCA::CASCADE_DELETE	=> false,									// default
 //			RelationDCA::NO_CB_REG		=> false,									// default
 			RelationDCA::SCHEMACHECK	=> true,									// explicit
 		),
+		
+		
+		
+		'onetooneOwnUnique' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'includeBlankOption'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_ONE_TO_ONE,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+//			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// implicit
+//			RelationDCA::OWN_KEY_COL	=> 'id',									// implicit
+			RelationDCA::FOREIGN_KEY_COL=> 'onetooneUnique',								// required
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_IGNORE,
+//			RelationDCA::NULL_VALUE		=> null,									// default
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// unused
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		'onetooneForeignUnique' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'includeBlankOption'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_ONE_TO_ONE,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+//			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_foreign',// implicit
+			RelationDCA::OWN_KEY_COL	=> 'onetooneUnique',								// required
+//			RelationDCA::FOREIGN_KEY_COL=> 'id',									// implicit
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_IGNORE,
+//			RelationDCA::NULL_VALUE		=> null,									// default
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// unused
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		'onetooneJoinTableUnique' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'includeBlankOption'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_ONE_TO_ONE,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_onetooneUnique',// explicit
+			RelationDCA::OWN_KEY_COL	=> 'ownCol',								// required
+			RelationDCA::FOREIGN_KEY_COL=> 'foreignCol',							// required
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_IGNORE,
+//			RelationDCA::NULL_VALUE		=> null,									// unused
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// default
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		
+		
+		
+		'manytooneOwn' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'includeBlankOption'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_MANY_TO_ONE,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+//			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// implicit
+//			RelationDCA::OWN_KEY_COL	=> 'id',									// implicit
+			RelationDCA::FOREIGN_KEY_COL=> 'manytoone',								// required
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+//			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_OVERWRITE,			// default
+//			RelationDCA::NULL_VALUE		=> null,									// default
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// unused
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		'manytooneJoinTable' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'includeBlankOption'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_MANY_TO_ONE,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_manytoone',// explicit
+			RelationDCA::OWN_KEY_COL	=> 'ownCol',								// required
+			RelationDCA::FOREIGN_KEY_COL=> 'foreignCol',							// required
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+//			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_OVERWRITE,			// default
+//			RelationDCA::NULL_VALUE		=> null,									// unused
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// default
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		
+		
+		
+		'onetomanyForeign' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'multiple'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_ONE_TO_MANY,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+//			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// implicit
+			RelationDCA::OWN_KEY_COL	=> 'onetomany',								// required
+//			RelationDCA::FOREIGN_KEY_COL=> 'id',									// implicit
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+//			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_OVERWRITE,			// default
+//			RelationDCA::NULL_VALUE		=> null,									// default
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// unused
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		'onetomanyJoinTable' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'multiple'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_ONE_TO_MANY,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_onetomany',// explicit
+			RelationDCA::OWN_KEY_COL	=> 'ownCol',								// required
+			RelationDCA::FOREIGN_KEY_COL=> 'foreignCol',							// required
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+//			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_OVERWRITE,			// default
+//			RelationDCA::NULL_VALUE		=> null,									// unused
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// default
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		
+		
+		
+		'onetomanyForeignUnique' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'multiple'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_ONE_TO_MANY,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+//			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// implicit
+			RelationDCA::OWN_KEY_COL	=> 'onetomanyUnique',						// required
+//			RelationDCA::FOREIGN_KEY_COL=> 'id',									// implicit
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_IGNORE,
+//			RelationDCA::NULL_VALUE		=> null,									// default
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// unused
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		'onetomanyJoinTableUnique' => array
+		(
+			'inputType'	=> 'select',
+			'foreignKey'=> 'tl_backboneit_relationdca_test_foreign.name', 
+			'eval'		=> array(
+				'multiple'	=> true,
+			),
+			RelationDCA::RELATION		=> RelationDCA::RELATION_ONE_TO_MANY,		// required
+//			RelationDCA::OWN_TABLE		=> 'tl_backboneit_relationdca_test_own',	// fixed
+//			RelationDCA::OWN_KEY		=> 'id',									// default
+			RelationDCA::FOREIGN_TABLE	=> 'tl_backboneit_relationdca_test_foreign',// required
+//			RelationDCA::FOREIGN_KEY	=> 'id',									// default
+			RelationDCA::JOIN_TABLE		=> 'tl_backboneit_relationdca_test_onetomanyUnique',// explicit
+			RelationDCA::OWN_KEY_COL	=> 'ownCol',								// required
+			RelationDCA::FOREIGN_KEY_COL=> 'foreignCol',							// required
+			RelationDCA::TIMESTAMP_COL	=> true, //'tstamp',						// optional
+			RelationDCA::UNIQUE			=> RelationDCA::UNIQUE_IGNORE,
+//			RelationDCA::NULL_VALUE		=> null,									// unused
+//			RelationDCA::KEYCHECK		=> RelationDCA::KEYCHECK_SILENT,			// default
+//			RelationDCA::ATTRIBUTES		=> array(),									// default
+//			RelationDCA::CASCADE_DELETE	=> false,									// default
+//			RelationDCA::NO_CB_REG		=> false,									// default
+			RelationDCA::SCHEMACHECK	=> true,									// explicit
+		),
+		
+		
+		
 		'manytomanyJoinTable' => array
 		(
 			'inputType'	=> 'select',

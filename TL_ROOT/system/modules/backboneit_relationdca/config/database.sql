@@ -8,5 +8,5 @@
 -- **********************************************************
 
 CREATE TABLE `tl_undo` (
-  `backboneit_relationdca` int(10) unsigned NOT NULL default '0',
+--  `backboneit_relationdca` int(10) unsigned NOT NULL default '0',
 ) ENGINE=MyISAM  DEFAULT CHARSET=utf8;
