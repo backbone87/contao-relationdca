@@ -1,0 +1,25 @@
+=== Titel
+SQL Relationen mit DCAs verwalten
+
+
+=== Suchbegriffe
+dca,relation,library,sql,database
+
+
+=== Teaser
+Ermöglicht es schnell und sauber alle 8 SQL-Bi-Relationen mit DCAs umzusetzen.
+
+
+=== Beschreibung
+<p><strong>Diese Erweiterung ist für Entwickler gedacht!</strong></p>
+<p>Bietet viele Konfigurationsmöglichkeiten. Diese sind in der RelationDCA.php 
+dokumentiert. Außerdem befindet sich im github Repo ein Modul mit verschiedenen 
+Testcases aller 8 Relationsvarianten.</p>
+<p>Repo: https://github.com/ContaoCommunityAlliance/backboneit_relationdca</p>
+
+
+=== Freigabe-Notizen und Änderungs-Log
+<p>siehe github Repo Tags</p>
+
+=== Handbuch-Link
+https://github.com/ContaoCommunityAlliance/backboneit_relationdca
