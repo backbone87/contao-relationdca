@@ -259,7 +259,7 @@ class RelationDCA extends Backend {
 	public function hookLoadDataContainer($strTable) {
 		$arrDCA = &$GLOBALS['TL_DCA'][$strTable];
 		
-		foreach($arrDCA['fields'] as $strField => &$arrConfig) {
+		if(is_array($arrDCA['fields'])) foreach($arrDCA['fields'] as $strField => &$arrConfig) {
 			if(!isset($arrConfig[self::RELATION]))
 				continue;
 			
