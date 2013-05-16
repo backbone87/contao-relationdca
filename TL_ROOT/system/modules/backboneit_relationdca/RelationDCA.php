@@ -376,38 +376,45 @@ class RelationDCA extends Backend {
 //		if(!$arrUndo)
 //			return;
 //
-//		$arrFields = $GLOBALS['TL_DCA'][$objDC->table]['relations'];
-//
-//		foreach((array) $arrFields as $strField => $arrConfig) {
-//			if(!$arrConfig[self::CASCADE_DELETE])
-//				continue;
-//
-//			if($arrConfig[self::JOIN_TABLE] == $objDC->table
-//			|| $arrConfig[self::JOIN_TABLE] == $arrConfig[self::FOREIGN_TABLE])
-//				continue;
-//
-//			$arrParams = array($objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
-//			$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
-//
-//			$objData = $this->Database->prepare('
-//				SELECT	*
-//				FROM	' . $arrConfig[self::JOIN_TABLE] . '
-//				WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
-//				' . $strAttributes
-//			)->executeUncached($arrParams);
-//
-//			while($objData->next()) {
-//				$arrUndo['data'][$arrConfig[self::JOIN_TABLE]][] = $objData->row();
-//				$blnStore = true;
-//			}
-//
-//			$objData->numRows && $this->Database->prepare('
-//				DELETE
-//				FROM	' . $arrConfig[self::JOIN_TABLE] . '
-//				WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
-//				' . $strAttributes
-//			)->executeUncached($arrParams);
-//		}
+		$arrFields = $GLOBALS['TL_DCA'][$objDC->table]['relations'];
+
+		foreach((array) $arrFields as $strField => $arrConfig) {
+// 			if(!$arrConfig[self::CASCADE_DELETE])
+// 				continue;
+
+			if($arrConfig[self::JOIN_TABLE] == $objDC->table
+			|| $arrConfig[self::JOIN_TABLE] == $arrConfig[self::FOREIGN_TABLE])
+				continue;
+
+// 			$arrParams = array($objDC->activeRecord->{$arrConfig[self::OWN_KEY]});
+// 			$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
+
+// 			$objData = $this->Database->prepare('
+// 				SELECT	*
+// 				FROM	' . $arrConfig[self::JOIN_TABLE] . '
+// 				WHERE	' . $arrConfig[self::OWN_KEY_COL] . ' = ?
+// 				' . $strAttributes
+// 			)->executeUncached($arrParams);
+
+// 			while($objData->next()) {
+// 				$arrUndo['data'][$arrConfig[self::JOIN_TABLE]][] = $objData->row();
+// 				$blnStore = true;
+// 			}
+
+			$strQuery = <<<SQL
+DELETE
+FROM	${arrConfig[self::JOIN_TABLE]}
+WHERE	${arrConfig[self::OWN_KEY_COL]} NOT IN (
+	SELECT	${arrConfig[self::OWN_KEY]}
+	FROM	${arrConfig[self::OWN_TABLE]}
+)
+OR		${arrConfig[self::FOREIGN_KEY_COL]} NOT IN (
+	SELECT	${arrConfig[self::FOREIGN_KEY]}
+	FROM	${arrConfig[self::FOREIGN_TABLE]}
+)
+SQL;
+			$this->Database->prepare($strQuery)->executeUncached();
+		}
 //
 //		$blnStore && $this->Database->prepare(
 //			'UPDATE	tl_undo
