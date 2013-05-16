@@ -328,7 +328,7 @@ class RelationDCA extends Backend {
 			$this->checkTable($arrConfig, self::JOIN_TABLE);
 			$this->checkColumn($arrConfig, $arrConfig[self::JOIN_TABLE], self::FOREIGN_KEY_COL);
 			$this->checkColumn($arrConfig, $arrConfig[self::JOIN_TABLE], self::OWN_KEY_COL);
-			isset($arrConfig[self::TIMESTAMP_COL]) && $this->checkColumn($arrConfig, $arrConfig[self::JOIN_TABLE], self::TIMESTAMP_COL, 'tstamp');
+			strlen($arrConfig[self::TIMESTAMP_COL]) && $this->checkColumn($arrConfig, $arrConfig[self::JOIN_TABLE], self::TIMESTAMP_COL, 'tstamp');
 
 			if(!$arrConfig[self::NO_CB_REG]) {
 				$arrConfig['load_callback'][__CLASS__] = array(__CLASS__, 'callbackFieldLoad');
@@ -469,7 +469,7 @@ class RelationDCA extends Backend {
 		}
 
 		$arrSet = array();
-		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
+		strlen($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 
 		switch($arrConfig[self::JOIN_TABLE]) {
 
@@ -574,7 +574,7 @@ class RelationDCA extends Backend {
 		$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
 
 		$arrSet = array();
-		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
+		strlen($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 
 		switch($arrConfig[self::JOIN_TABLE]) {
 
@@ -621,7 +621,7 @@ class RelationDCA extends Backend {
 		$strAttributes = $this->generateAttributes($arrConfig, $arrParams);
 
 		$arrSet = array();
-		isset($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
+		strlen($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 
 		$arrExisting = $objStmt->prepare('
 			SELECT	' . $arrConfig[self::FOREIGN_KEY_COL] . '
@@ -738,7 +738,7 @@ class RelationDCA extends Backend {
 
 		$arrSet = (array) $arrConfig[self::ATTRIBUTES];
 		$arrSet[$arrConfig[self::OWN_KEY_COL]] = $objDC->activeRecord->{$arrConfig[self::OWN_KEY]};
-		$arrConfig[self::TIMESTAMP_COL] && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
+		strlen($arrConfig[self::TIMESTAMP_COL]) && $arrSet[$arrConfig[self::TIMESTAMP_COL]] = time();
 
 		foreach(array_diff($arrValues, $arrExisting) as $varForeignKey) {
 			$arrSet[$arrConfig[self::FOREIGN_KEY_COL]] = $varForeignKey;
